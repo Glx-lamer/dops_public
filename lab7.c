@@ -70,15 +70,15 @@ void LZW_encode(FILE *in, FILE *out) {
         int code = Search(dict, curr_seq);
 
         if (code == -1) {
-            fprintf(out, "%d ", prev_code);
+            if (prev_code != -1) {
+                fprintf(out, "%d ", prev_code);
+            }
 
             dict = Insert(dict, curr_seq, next_code++);
-
             curr_seq[0] = ch;
             curr_seq[1] = '\0';
             prev_code = Search(dict, curr_seq);
-        }
-        else {
+        } else {
             prev_code = code;
         }
     }
@@ -192,8 +192,7 @@ void FanoAlgo(struct symbol *Symbols, int start, int end, char *seq) {
 }
 
 void Fano_encode(FILE *in, FILE *alp, FILE *out) {
-    FILE *temp = fopen("temp.txt", "w");
-    struct symbol Symbols[256];  // Увеличили массив до 256 символов
+    struct symbol Symbols[256];  // Массив для 256 символов
     char ch;
     int curr_ind = 0;
 
@@ -223,44 +222,14 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
 
     fseek(in, 0, SEEK_SET);
 
-    char buffer_[9];
-    int buffer_ind = 0;
-    buffer_[0] = '\0';
-
     while ((ch = fgetc(in)) != EOF) {
         for (int i = 0; i < curr_ind; i++) {
             if (ch == Symbols[i].key) {
-                fprintf(temp, "%s", Symbols[i].value);
+                fprintf(out, "%s", Symbols[i].value);
                 break;
             }
         }
     }
-
-    fclose(temp);
-
-    temp = fopen("temp.txt", "r");
-
-    while((ch = fgetc(temp)) != EOF) {
-        buffer_[buffer_ind] = ch;
-        if (buffer_ind == 8) {
-            buffer_[8] = '\0';
-            fputc((char)strtol(buffer_, NULL, 2), out);
-            buffer_ind = -1;
-            buffer_[0] = '\0';
-        }
-        buffer_ind++;
-        buffer_[buffer_ind + 1] = '\0';
-    }
-
-    if(buffer_ind > 0) {
-        for (int i = 0; i < buffer_ind; i++) {
-            fputc(buffer_[i], out);
-        }
-    }
-
-    fclose(temp);
-
-    remove("temp.txt");
 
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
@@ -271,20 +240,8 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
     fclose(out);
 }
 
-void dtb(unsigned char decimal, char *buffer) {
-    int i = 7;
-    while (i > 0) {
-        buffer[i--] = (decimal % 2) + '0';
-        decimal /= 2;
-    }
-    
-    while(i >= 0){
-        buffer[i--] = '0';
-    }
-}
-
 void Fano_decode(FILE *alp, FILE *in, FILE *out) {
-    struct symbol Symbols[256];  // Увеличили массив до 256 символов
+    struct symbol Symbols[256];  // Массив для 256 символов
     char key;
     char code[16];
     int curr_ind = 0;
@@ -297,44 +254,22 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     }
 
     char ch;
-    char buffer_[9];
-    buffer_[8] = '\0';
-
-    FILE *temp = fopen("temp.txt", "w");
-
-    while ((ch = fgetc(in)) != EOF) {
-        if(ch != '0' && ch != '1') {
-            dtb(ch, buffer_);
-            fprintf(temp, "%s", buffer_);
-        }
-        else {
-            fprintf(temp, "%c", ch);
-        }
-    }
-
-    fclose(temp);
-
-    temp = fopen("temp.txt", "r");
-
     char codes[16];
     int codes_ind = 0;
-    while((ch = fgetc(temp))!= EOF) {
+
+    while ((ch = fgetc(in)) != EOF) {
         codes[codes_ind] = ch;
         codes_ind++;
         codes[codes_ind] = '\0';
-        for(int i = 0; i < curr_ind; i++) {
-            if(strcmp(codes, Symbols[i].value) == 0) {
+        for (int i = 0; i < curr_ind; i++) {
+            if (strcmp(codes, Symbols[i].value) == 0) {
                 fputc(Symbols[i].key, out);
                 codes_ind = 0;
-                codes[codes_ind] = '\0';
+                codes[0] = '\0';
                 break;
             }
         }
     }
-
-    fclose(temp);
-
-    remove("temp.txt");
 
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
@@ -348,38 +283,86 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
 void LZW(char mode, char *input_file, char *output_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
+        if (in == NULL) {
+            perror("Ошибка при открытии входного файла");
+            return;
+        }
         FILE *out = fopen(output_file, "w");
+        if (out == NULL) {
+            perror("Ошибка при открытии выходного файла");
+            fclose(in);
+            return;
+        }
         LZW_encode(in, out);
     }
     
     else if (mode == 'd') {
         FILE *in = fopen(input_file, "r");
+        if (in == NULL) {
+            perror("Ошибка при открытии входного файла");
+            return;
+        }
         FILE *out = fopen(output_file, "w");
+        if (out == NULL) {
+            perror("Ошибка при открытии выходного файла");
+            fclose(in);
+            return;
+        }
         LZW_decode(in, out);
     }
     
     else {
-        printf("Invalid mode. Use e for encoding and d for decoding.\n");
+        printf("Неверный режим. Используйте 'e' для кодирования и 'd' для декодирования.\n");
     }
 }
 
 void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
-        FILE *out = fopen(output_file, "wb");
+        if (in == NULL) {
+            perror("Ошибка при открытии входного файла");
+            return;
+        }
+        FILE *out = fopen(output_file, "w");
+        if (out == NULL) {
+            perror("Ошибка при открытии выходного файла");
+            fclose(in);
+            return;
+        }
         FILE *alp = fopen(alphabet_file, "w");
+        if (alp == NULL) {
+            perror("Ошибка при открытии файла алфавита");
+            fclose(in);
+            fclose(out);
+            return;
+        }
         Fano_encode(in, alp, out);
     }
 
     else if (mode == 'd') {
-        FILE *in = fopen(input_file, "rb");
+        FILE *in = fopen(input_file, "r");
+        if (in == NULL) {
+            perror("Ошибка при открытии входного файла");
+            return;
+        }
         FILE *out = fopen(output_file, "w");
+        if (out == NULL) {
+            perror("Ошибка при открытии выходного файла");
+            fclose(in);
+            return;
+        }
         FILE *alp = fopen(alphabet_file, "r");
+        if (alp == NULL) {
+            perror("Ошибка при открытии файла алфавита");
+            fclose(in);
+            fclose(out);
+            return;
+        }
         Fano_decode(alp, in, out);
     }
 
     else {
-        printf("Invalid mode. Use e for encoding and d for decoding.\n");
+        printf("Неверный режим. Используйте 'e' для кодирования и 'd' для декодирования.\n");
     }
 }
 
@@ -405,7 +388,7 @@ int main(int argc, char *argv[]) {
         Fano(mode[0], input_file, output_file, alphabet_file);
     }
     else {
-        printf("Invalid algorithm. Use LZW or Fano.\n");
+        printf("Неверный алгоритм. Используйте LZW или Fano.\n");
         return 1;
     }
 
