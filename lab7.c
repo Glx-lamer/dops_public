@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <locale.h>
 
 struct dict {
     char *key;
@@ -96,6 +98,16 @@ void LZW_encode(FILE *in, FILE *out) {
 
     free(curr_seq);
 
+    fseek(in, 0, SEEK_END);
+    fseek(out, 0, SEEK_END);
+
+    long inSize = ftell(in);
+    long outSize = ftell(out);
+
+    printf("Размер исходного файла: %ld байт\n", inSize);
+    printf("Размер закодированного файла: %ld байт\n", outSize);
+    printf("Коэффициент сжатия алгоритма LZW: %.2f\n", (double)inSize / outSize);
+
     fclose(in);
     fclose(out);
 }
@@ -142,6 +154,16 @@ void LZW_decode(FILE *in, FILE *out) {
         free(temp->key);
         free(temp);
     }
+
+    fseek(in, 0, SEEK_END);
+    fseek(out, 0, SEEK_END);
+
+    long inSize = ftell(in);
+    long outSize = ftell(out);
+
+    printf("Размер закодированного файла: %ld байт\n", inSize);
+    printf("Размер декодированного файла: %ld байт\n", outSize);
+    printf("Коэффициент сжатия алгоритма LZW: %.2f\n", (double)outSize / inSize);
 
     fclose(in);
     fclose(out);
@@ -192,7 +214,7 @@ void FanoAlgo(struct symbol *Symbols, int start, int end, char *seq) {
 }
 
 void Fano_encode(FILE *in, FILE *alp, FILE *out) {
-    struct symbol Symbols[256];  // Массив для 256 символов
+    struct symbol Symbols[256];
     char ch;
     int curr_ind = 0;
 
@@ -235,13 +257,24 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
         free(Symbols[i].value);
     }
 
+    fseek(in, 0, SEEK_END);
+    fseek(out, 0, SEEK_END);
+
+    long inSize = ftell(in);
+    long outSize = ftell(out);
+
+    printf("Размер исходного файла: %ld байт\n", inSize);
+    printf("Размер закодированного файла: %ld байт\n", outSize);
+    printf("Коэффициент сжатия алгоритма Фано: %.2f\n", (double)inSize / outSize);
+
+
     fclose(alp);
     fclose(in);
     fclose(out);
 }
 
 void Fano_decode(FILE *alp, FILE *in, FILE *out) {
-    struct symbol Symbols[256];  // Массив для 256 символов
+    struct symbol Symbols[256];
     char key;
     char code[16];
     int curr_ind = 0;
@@ -275,6 +308,16 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
         free(Symbols[i].value);
     }
 
+    fseek(in, 0, SEEK_END);
+    fseek(out, 0, SEEK_END);
+
+    long inSize = ftell(in);
+    long outSize = ftell(out);
+
+    printf("Размер закодированного файла: %ld байт\n", inSize);
+    printf("Размер декодированного файла: %ld байт\n", outSize);
+    printf("Коэффициент сжатия алгоритма Фано: %.2f\n", (double)outSize / inSize);
+
     fclose(alp);
     fclose(in);
     fclose(out);
@@ -283,32 +326,22 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
 void LZW(char mode, char *input_file, char *output_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
-        if (in == NULL) {
-            perror("Ошибка при открытии входного файла");
-            return;
-        }
         FILE *out = fopen(output_file, "w");
-        if (out == NULL) {
-            perror("Ошибка при открытии выходного файла");
-            fclose(in);
-            return;
-        }
+        clock_t start_time = clock();
         LZW_encode(in, out);
+        clock_t end_time = clock();
+        double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+        printf("Длительность выполнения кодирования алгоритмом LZW: %.6f секунд\n", duration);
     }
     
     else if (mode == 'd') {
         FILE *in = fopen(input_file, "r");
-        if (in == NULL) {
-            perror("Ошибка при открытии входного файла");
-            return;
-        }
         FILE *out = fopen(output_file, "w");
-        if (out == NULL) {
-            perror("Ошибка при открытии выходного файла");
-            fclose(in);
-            return;
-        }
+        clock_t start_time = clock();
         LZW_decode(in, out);
+        clock_t end_time = clock();
+        double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+        printf("Длительность выполнения декодирования алгоритмом LZW: %.6f секунд\n", duration);
     }
     
     else {
@@ -319,46 +352,24 @@ void LZW(char mode, char *input_file, char *output_file) {
 void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
-        if (in == NULL) {
-            perror("Ошибка при открытии входного файла");
-            return;
-        }
         FILE *out = fopen(output_file, "w");
-        if (out == NULL) {
-            perror("Ошибка при открытии выходного файла");
-            fclose(in);
-            return;
-        }
         FILE *alp = fopen(alphabet_file, "w");
-        if (alp == NULL) {
-            perror("Ошибка при открытии файла алфавита");
-            fclose(in);
-            fclose(out);
-            return;
-        }
+        clock_t start_time = clock();
         Fano_encode(in, alp, out);
+        clock_t end_time = clock();
+        double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+        printf("Длительность выполнения декодирования алгоритмом Фано: %.6f секунд\n", duration);
     }
 
     else if (mode == 'd') {
         FILE *in = fopen(input_file, "r");
-        if (in == NULL) {
-            perror("Ошибка при открытии входного файла");
-            return;
-        }
         FILE *out = fopen(output_file, "w");
-        if (out == NULL) {
-            perror("Ошибка при открытии выходного файла");
-            fclose(in);
-            return;
-        }
         FILE *alp = fopen(alphabet_file, "r");
-        if (alp == NULL) {
-            perror("Ошибка при открытии файла алфавита");
-            fclose(in);
-            fclose(out);
-            return;
-        }
+        clock_t start_time = clock();
         Fano_decode(alp, in, out);
+        clock_t end_time = clock();
+        double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+        printf("Длительность выполнения декодирования алгоритмом Фано: %.6f секунд\n", duration);
     }
 
     else {
@@ -367,6 +378,8 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
 }
 
 int main(int argc, char *argv[]) {
+
+    setlocale(LC_ALL, "ru_RU.UTF-8");
 
     if (argc < 5) {
         printf("Usage: %s <algorithm> <mode> <input_file> <output_file> [alphabet_file]\nalgorithm: LZW or Fano\nmode: e (encode) or d (decode)\ninput_file: path to input file\noutput_file: path to output file\n[alphabet_file]: required for Fano decoding/encoding\n", argv[0]);
