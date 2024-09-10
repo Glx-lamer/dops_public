@@ -217,6 +217,12 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
     struct symbol Symbols[256];
     char ch;
     int curr_ind = 0;
+    char buff[256];
+    char buff_[9] = {0};
+    buff_[8] = '\0';
+    char buff_ind = 0;
+    buff[buff_ind] = '\0';
+    int count = 0;
 
     while ((ch = fgetc(in)) != EOF) {
         int found = 0;
@@ -247,11 +253,28 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
     while ((ch = fgetc(in)) != EOF) {
         for (int i = 0; i < curr_ind; i++) {
             if (ch == Symbols[i].key) {
-                fprintf(out, "%s", Symbols[i].value);
+                strcat(buff, Symbols[i].value);  // Добавляем код символа
+                buff_ind += strlen(Symbols[i].value);
+                while (buff_ind >= 8) {
+                    strncpy(buff_, buff, 8);
+                    buff_[8] = '\0';
+                    fputc((char)strtol(buff_, NULL, 2), out);
+
+                    memmove(buff, buff + 8, buff_ind - 8);
+                    buff_ind -= 8;
+                    buff[buff_ind] = '\0';
+                }
                 break;
             }
         }
     }
+
+    if(buff_ind > 0) {
+        for(int i = 0; i < buff_ind; i++) {
+            fputc((char)buff[i], out);
+        }
+    }
+    fputc((char)buff_ind, out);
 
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
@@ -272,6 +295,17 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
     fclose(in);
     fclose(out);
 }
+void dbt(int dec, char *bin){
+    bin[8] = '\0';
+    int i = 7;
+    while (dec > 0) {
+        bin[i] = (dec % 2) + '0';
+        dec /= 2;
+    }
+    while (i >= 0){
+        bin[i--] = '0';
+    }
+}
 
 void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     struct symbol Symbols[256];
@@ -287,22 +321,59 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     }
 
     char ch;
+    int last_code = 0;
     char codes[16];
+    codes[0] = '\0';
+    char bin[9];
     int codes_ind = 0;
+    int len; 
+    
+    fseek(in, -1, SEEK_END);
 
-    while ((ch = fgetc(in)) != EOF) {
-        codes[codes_ind] = ch;
-        codes_ind++;
-        codes[codes_ind] = '\0';
+    ch = fgetc(in);
+    last_code = (int)ch;
+    char *last_codes = (char *) malloc((last_code + 1) * sizeof(char));
+    fseek(in, -last_code*sizeof(char), SEEK_END);
+    len = ftell(in)/sizeof(char);
+    for(int i = 0; i < last_code; i++) {
+        last_codes[i] = fgetc(in);
+    }
+    last_codes[last_code] = '\0';
+
+    fseek(in, 0, SEEK_SET);
+
+    while ((ch = fgetc(in)) != EOF && len > 0) {
+        dbt((unsigned char)ch, bin);
+        codes_ind = 8;
+        strcat(codes, bin);
         for (int i = 0; i < curr_ind; i++) {
-            if (strcmp(codes, Symbols[i].value) == 0) {
+            if (strncmp(codes, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
                 fputc(Symbols[i].key, out);
-                codes_ind = 0;
-                codes[0] = '\0';
+                memmove(codes, codes + strlen(Symbols[i].value), codes_ind - strlen(Symbols[i].value));
+                codes_ind -= strlen(Symbols[i].value);
+                codes[codes_ind] = '\0';
                 break;
             }
         }
+        len--;
     }
+    codes_ind += last_code;
+    strcat(codes, last_codes);
+    codes[codes_ind] = '\0';
+    while (codes_ind > 0) {
+        for (int i = 0; i < curr_ind; i++) {
+            if (strncmp(codes, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
+                fputc(Symbols[i].key, out);
+                memmove(codes, codes + strlen(Symbols[i].value), codes_ind - strlen(Symbols[i].value));
+                codes_ind -= strlen(Symbols[i].value);
+                codes[codes_ind] = '\0';
+                break;
+            }
+        }
+        printf("%d", codes_ind);
+    }
+
+    free(last_codes);
 
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
