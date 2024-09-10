@@ -213,16 +213,34 @@ void FanoAlgo(struct symbol *Symbols, int start, int end, char *seq) {
     FanoAlgo(Symbols, split + 1, end, right_prefix);
 }
 
+void FullBytes(char *bits, FILE *stream) {
+    while (strlen(bits) >= 8) {
+        unsigned char byte = 0;
+        for (int i = 0; i < 8; i++) {
+            byte |= (bits[i] - '0') << (7 - i);
+        }
+        fwrite(&byte, sizeof(unsigned char), 1, stream);
+        strcpy(bits, bits + 8);
+    }
+}
+
+void InvBytes(char *bits, FILE *stream) {
+    unsigned char byte = 0;
+    unsigned char len = strlen(bits);
+    if (len > 0) {
+        for (int i = 0; i < len; i++) {
+            byte |= (bits[i] - '0') << (7 - i);
+        }
+        // byte <<= (8 - len);
+    }
+    fwrite(&byte, sizeof(unsigned char), 1, stream);
+    fwrite(&len, sizeof(unsigned char), 1, stream);
+}
+
 void Fano_encode(FILE *in, FILE *alp, FILE *out) {
-    struct symbol Symbols[256];
+    struct symbol Symbols[5];
     char ch;
     int curr_ind = 0;
-    char buff[256];
-    char buff_[9] = {0};
-    buff_[8] = '\0';
-    char buff_ind = 0;
-    buff[buff_ind] = '\0';
-    int count = 0;
 
     while ((ch = fgetc(in)) != EOF) {
         int found = 0;
@@ -250,31 +268,20 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
 
     fseek(in, 0, SEEK_SET);
 
-    while ((ch = fgetc(in)) != EOF) {
-        for (int i = 0; i < curr_ind; i++) {
-            if (ch == Symbols[i].key) {
-                strcat(buff, Symbols[i].value);  // Добавляем код символа
-                buff_ind += strlen(Symbols[i].value);
-                while (buff_ind >= 8) {
-                    strncpy(buff_, buff, 8);
-                    buff_[8] = '\0';
-                    fputc((char)strtol(buff_, NULL, 2), out);
+    char buff[16];
+    buff[0] = '\0';
 
-                    memmove(buff, buff + 8, buff_ind - 8);
-                    buff_ind -= 8;
-                    buff[buff_ind] = '\0';
-                }
+    while ((ch = fgetc(in)) != EOF) {
+        for(int i = 0; i < curr_ind; i++) {
+            if (ch == Symbols[i].key) {
+                strcat(buff, Symbols[i].value);
+                FullBytes(buff, out);
                 break;
             }
         }
     }
 
-    if(buff_ind > 0) {
-        for(int i = 0; i < buff_ind; i++) {
-            fputc((char)buff[i], out);
-        }
-    }
-    fputc((char)buff_ind, out);
+    InvBytes(buff, out);
 
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
@@ -295,24 +302,27 @@ void Fano_encode(FILE *in, FILE *alp, FILE *out) {
     fclose(in);
     fclose(out);
 }
-void dbt(int dec, char *bin){
+void dtb(int dec, char *bin){
     bin[8] = '\0';
     int i = 7;
-    while (dec > 0) {
-        bin[i] = (dec % 2) + '0';
+
+    while (dec > 0 && i >= 0) {
+        bin[i--] = (dec % 2) + '0';
         dec /= 2;
     }
-    while (i >= 0){
+
+    while (i >= 0) {
         bin[i--] = '0';
     }
 }
 
 void Fano_decode(FILE *alp, FILE *in, FILE *out) {
-    struct symbol Symbols[256];
+    struct symbol Symbols[5];
     char key;
-    char code[16];
+    char code[16] = {0};
     int curr_ind = 0;
 
+    // Чтение алфавита
     while (fscanf(alp, "%c:%s\n", &key, code) != EOF) {
         Symbols[curr_ind].key = key;
         Symbols[curr_ind].value = (char *)malloc(sizeof(char) * (strlen(code) + 1));
@@ -320,65 +330,68 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
         curr_ind++;
     }
 
-    char ch;
-    int last_code = 0;
-    char codes[16];
-    codes[0] = '\0';
-    char bin[9];
-    int codes_ind = 0;
-    int len; 
-    
+    unsigned char byte;
+    unsigned char last_byte = 0;
+    unsigned char len = 0;
+    long part = 0;
+
+    // Определяем размер последнего неполного байта
     fseek(in, -1, SEEK_END);
+    part = ftell(in);
+    fread(&len, sizeof(unsigned char), 1, in);
 
-    ch = fgetc(in);
-    last_code = (int)ch;
-    char *last_codes = (char *) malloc((last_code + 1) * sizeof(char));
-    fseek(in, -last_code*sizeof(char), SEEK_END);
-    len = ftell(in)/sizeof(char);
-    for(int i = 0; i < last_code; i++) {
-        last_codes[i] = fgetc(in);
+    // Если последний байт неполный, читаем его
+    if (len > 0) {
+        fseek(in, -2, SEEK_END);
+        part = ftell(in);
+        fread(&last_byte, sizeof(unsigned char), 1, in);
     }
-    last_codes[last_code] = '\0';
 
-    fseek(in, 0, SEEK_SET);
+    fseek(in, 0, SEEK_SET); // Возвращаем указатель в начало файла
 
-    while ((ch = fgetc(in)) != EOF && len > 0) {
-        dbt((unsigned char)ch, bin);
-        codes_ind = 8;
-        strcat(codes, bin);
-        for (int i = 0; i < curr_ind; i++) {
-            if (strncmp(codes, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
-                fputc(Symbols[i].key, out);
-                memmove(codes, codes + strlen(Symbols[i].value), codes_ind - strlen(Symbols[i].value));
-                codes_ind -= strlen(Symbols[i].value);
-                codes[codes_ind] = '\0';
-                break;
+    char bin[9] = {0};  // Буфер для битов
+    char buff[16] = {0}; // Временный буфер для декодирования
+
+    // Чтение и декодирование основных байтов
+    while (fread(&byte, sizeof(unsigned char), 1, in) && ftell(in) <= part) {
+        dtb((int)byte, bin);  // Преобразование байта в строку бит
+        strcat(buff, bin);
+        while (strlen(buff) > 0) {
+            for (int i = 0; i < curr_ind; i++) {
+                if (strncmp(buff, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
+                    fputc(Symbols[i].key, out);
+                    strcpy(buff, buff + strlen(Symbols[i].value));
+                    break;
+                }
             }
         }
-        len--;
     }
-    codes_ind += last_code;
-    strcat(codes, last_codes);
-    codes[codes_ind] = '\0';
-    while (codes_ind > 0) {
-        for (int i = 0; i < curr_ind; i++) {
-            if (strncmp(codes, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
-                fputc(Symbols[i].key, out);
-                memmove(codes, codes + strlen(Symbols[i].value), codes_ind - strlen(Symbols[i].value));
-                codes_ind -= strlen(Symbols[i].value);
-                codes[codes_ind] = '\0';
-                break;
+
+    // Обработка последнего неполного байта, если он существует
+    if (len > 0) {
+        dtb(last_byte, bin);  // Преобразование последнего байта в строку бит
+        bin[len] = '\0';      // Обрезаем строку до длины последнего байта
+        strcat(buff, bin);    // Добавляем в буфер
+
+        // Декодируем последний фрагмент бит
+        while (len > 0) {
+            for (int i = 0; i < curr_ind; i++) {
+                if (strncmp(buff, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
+                    fputc(Symbols[i].key, out);
+                    strcpy(buff, buff + strlen(Symbols[i].value));
+                    len -= strlen(Symbols[i].value);
+                    break;
+                }
             }
         }
-        printf("%d", codes_ind);
     }
 
-    free(last_codes);
-
+    // Освобождение памяти для алфавита
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
     }
 
+    // Вывод информации о размерах файлов
     fseek(in, 0, SEEK_END);
     fseek(out, 0, SEEK_END);
 
@@ -423,7 +436,7 @@ void LZW(char mode, char *input_file, char *output_file) {
 void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
-        FILE *out = fopen(output_file, "w");
+        FILE *out = fopen(output_file, "wb");
         FILE *alp = fopen(alphabet_file, "w");
         clock_t start_time = clock();
         Fano_encode(in, alp, out);
@@ -433,7 +446,7 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     }
 
     else if (mode == 'd') {
-        FILE *in = fopen(input_file, "r");
+        FILE *in = fopen(input_file, "rb");
         FILE *out = fopen(output_file, "w");
         FILE *alp = fopen(alphabet_file, "r");
         clock_t start_time = clock();
@@ -450,6 +463,9 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
 
 int main(int argc, char *argv[]) {
 
+    int argc = 6;
+
+
     setlocale(LC_ALL, "ru_RU.UTF-8");
 
     if (argc < 5) {
@@ -462,13 +478,25 @@ int main(int argc, char *argv[]) {
     char *input_file = argv[3];
     char *output_file = argv[4];
     char *alphabet_file = NULL;
+
+    // char *algorithm = "Fano";
+    // char *mode = "d";
+    // char *input_file = "text_enc.bin";
+    // char *output_file = "text_dec.txt";
+    // char *alphabet_file = "text_alp.txt";
     
+    // char *algorithm = "Fano";
+    // char *mode = "e";
+    // char *input_file = "text.txt";
+    // char *output_file = "text_enc.bin";
+    // char *alphabet_file = "text_alp.txt";
+
     if (strcmp(algorithm, "LZW") == 0) {
         LZW(mode[0], input_file, output_file);
     }
     
     else if (strcmp(algorithm, "Fano") == 0) {
-        alphabet_file = argv[5];
+        // alphabet_file = argv[5];
         Fano(mode[0], input_file, output_file, alphabet_file);
     }
     else {
