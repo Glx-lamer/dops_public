@@ -61,37 +61,37 @@ int is_binary_file(char *filename) {
     return 1;
 }
 
-void LZW_encode(FILE *in, FILE *out) {
+void LZW_encode(FILE *in, FILE *out, int is_bin_input) {
     struct dict *dict = NULL;
     dict = ASCII(dict);
     int next_code = 256;
 
-    char *curr_seq = (char *)malloc(sizeof(char));
+    unsigned char *curr_seq = (unsigned char *)malloc(sizeof(unsigned char));
     curr_seq[0] = '\0';
 
-    char ch;
     int prev_code = -1;
 
-    while ((ch = fgetc(in)) != EOF) {
-        char *temp_seq;
-        int curr_len = strlen(curr_seq);
+    unsigned char ch;
+    while (fread(&ch, sizeof(unsigned char), 1, in)) {
+        unsigned char *temp_seq;
+        int curr_len = strlen((char *)curr_seq);
 
-        temp_seq = realloc(curr_seq, sizeof(char) * (curr_len + 2));
+        temp_seq = realloc(curr_seq, sizeof(unsigned char) * (curr_len + 2));
         curr_seq = temp_seq;
         curr_seq[curr_len] = ch;
         curr_seq[curr_len + 1] = '\0';
 
-        int code = Search(dict, curr_seq);
+        int code = Search(dict, (char *)curr_seq);
 
         if (code == -1) {
             if (prev_code != -1) {
                 fwrite(&prev_code, sizeof(int), 1, out);
             }
 
-            dict = Insert(dict, curr_seq, next_code++);
+            dict = Insert(dict, (char *)curr_seq, next_code++);
             curr_seq[0] = ch;
             curr_seq[1] = '\0';
-            prev_code = Search(dict, curr_seq);
+            prev_code = Search(dict, (char *)curr_seq);
         } else {
             prev_code = code;
         }
@@ -124,38 +124,46 @@ void LZW_encode(FILE *in, FILE *out) {
     fclose(out);
 }
 
-void LZW_decode(FILE *in, FILE *out) {
+void LZW_decode(FILE *in, FILE *out, int is_bin_output) {
     struct dict *dict = NULL;
     dict = ASCII(dict);
     int next_code = 256;
 
     int prev_code;
     int curr_code;
-    char *prev_seq;
-    char *curr_seq;
+    unsigned char *prev_seq;
+    unsigned char *curr_seq;
 
     fread(&prev_code, sizeof(int), 1, in);
+    prev_seq = (unsigned char *)Get(dict, prev_code);
 
-    prev_seq = Get(dict, prev_code);
-    fprintf(out, "%s", prev_seq);
+    if (is_bin_output) {
+        fwrite(prev_seq, sizeof(unsigned char), strlen((char *)prev_seq), out);
+    } else {
+        fprintf(out, "%s", prev_seq);
+    }
 
     while (fread(&curr_code, sizeof(int), 1, in) == 1) {
-        curr_seq = Get(dict, curr_code);
+        curr_seq = (unsigned char *)Get(dict, curr_code);
 
         if (curr_seq == NULL) {
-            char temp[2] = {prev_seq[0], '\0'};
-            curr_seq = (char *)malloc(sizeof(char) * (strlen(prev_seq) + 2));
-            strcpy(curr_seq, prev_seq);
-            strcat(curr_seq, temp);
+            unsigned char temp[2] = {prev_seq[0], '\0'};
+            curr_seq = (unsigned char *)malloc(sizeof(unsigned char) * (strlen((char *)prev_seq) + 2));
+            strcpy((char *)curr_seq, (char *)prev_seq);
+            strcat((char *)curr_seq, (char *)temp);
         }
 
-        fprintf(out, "%s", curr_seq);
+        if (is_bin_output) {
+            fwrite(curr_seq, sizeof(unsigned char), strlen((char *)curr_seq), out);
+        } else {
+            fprintf(out, "%s", curr_seq);
+        }
 
-        char *new_entry = (char *)malloc(sizeof(char) * (strlen(prev_seq) + 2));
-        strcpy(new_entry, prev_seq);
-        new_entry[strlen(prev_seq)] = curr_seq[0];
-        new_entry[strlen(prev_seq) + 1] = '\0';
-        dict = Insert(dict, new_entry, next_code++);
+        unsigned char *new_entry = (unsigned char *)malloc(sizeof(unsigned char) * (strlen((char *)prev_seq) + 2));
+        strcpy((char *)new_entry, (char *)prev_seq);
+        new_entry[strlen((char *)prev_seq)] = curr_seq[0];
+        new_entry[strlen((char *)prev_seq) + 1] = '\0';
+        dict = Insert(dict, (char *)new_entry, next_code++);
 
         prev_seq = curr_seq;
     }
@@ -415,7 +423,7 @@ void LZW(char mode, char *input_file, char *output_file) {
         FILE *in = fopen(input_file, "r");
         FILE *out = fopen(output_file, "wb");
         clock_t start_time = clock();
-        LZW_encode(in, out);
+        LZW_encode(in, out, is_binary_file(input_file));
         clock_t end_time = clock();
         double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
         printf("Длительность выполнения кодирования алгоритмом LZW: %.6f секунд\n", duration);
@@ -425,7 +433,7 @@ void LZW(char mode, char *input_file, char *output_file) {
         FILE *in = fopen(input_file, "rb");
         FILE *out = fopen(output_file, "w");
         clock_t start_time = clock();
-        LZW_decode(in, out);
+        LZW_decode(in, out, is_binary_file(output_file));
         clock_t end_time = clock();
         double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
         printf("Длительность выполнения декодирования алгоритмом LZW: %.6f секунд\n", duration);
