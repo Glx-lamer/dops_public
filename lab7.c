@@ -322,7 +322,6 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     char code[16] = {0};
     int curr_ind = 0;
 
-    // Чтение алфавита
     while (fscanf(alp, "%c:%s\n", &key, code) != EOF) {
         Symbols[curr_ind].key = key;
         Symbols[curr_ind].value = (char *)malloc(sizeof(char) * (strlen(code) + 1));
@@ -335,26 +334,23 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     unsigned char len = 0;
     long part = 0;
 
-    // Определяем размер последнего неполного байта
     fseek(in, -1, SEEK_END);
     part = ftell(in);
     fread(&len, sizeof(unsigned char), 1, in);
 
-    // Если последний байт неполный, читаем его
     if (len > 0) {
         fseek(in, -2, SEEK_END);
         part = ftell(in);
         fread(&last_byte, sizeof(unsigned char), 1, in);
     }
 
-    fseek(in, 0, SEEK_SET); // Возвращаем указатель в начало файла
+    fseek(in, 0, SEEK_SET);
 
-    char bin[9] = {0};  // Буфер для битов
-    char buff[16] = {0}; // Временный буфер для декодирования
+    char bin[9] = {0};
+    char buff[16] = {0};
 
-    // Чтение и декодирование основных байтов
     while (fread(&byte, sizeof(unsigned char), 1, in) && ftell(in) <= part) {
-        dtb((int)byte, bin);  // Преобразование байта в строку бит
+        dtb((int)byte, bin);
         strcat(buff, bin);
         while (strlen(buff) > 0) {
             for (int i = 0; i < curr_ind; i++) {
@@ -367,13 +363,11 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
         }
     }
 
-    // Обработка последнего неполного байта, если он существует
     if (len > 0) {
-        dtb(last_byte, bin);  // Преобразование последнего байта в строку бит
-        bin[len] = '\0';      // Обрезаем строку до длины последнего байта
-        strcat(buff, bin);    // Добавляем в буфер
+        dtb(last_byte, bin);  
+        bin[len] = '\0';      
+        strcat(buff, bin);    
 
-        // Декодируем последний фрагмент бит
         while (len > 0) {
             for (int i = 0; i < curr_ind; i++) {
                 if (strncmp(buff, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
@@ -386,12 +380,10 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
         }
     }
 
-    // Освобождение памяти для алфавита
     for (int i = 0; i < curr_ind; i++) {
         free(Symbols[i].value);
     }
 
-    // Вывод информации о размерах файлов
     fseek(in, 0, SEEK_END);
     fseek(out, 0, SEEK_END);
 
@@ -463,9 +455,6 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
 
 int main(int argc, char *argv[]) {
 
-    int argc = 6;
-
-
     setlocale(LC_ALL, "ru_RU.UTF-8");
 
     if (argc < 5) {
@@ -496,7 +485,7 @@ int main(int argc, char *argv[]) {
     }
     
     else if (strcmp(algorithm, "Fano") == 0) {
-        // alphabet_file = argv[5];
+        alphabet_file = argv[5];
         Fano(mode[0], input_file, output_file, alphabet_file);
     }
     else {
