@@ -238,7 +238,7 @@ void InvBytes(char *bits, FILE *stream) {
 }
 
 void Fano_encode(FILE *in, FILE *alp, FILE *out) {
-    struct symbol Symbols[5];
+    struct symbol Symbols[256];
     char ch;
     int curr_ind = 0;
 
@@ -317,7 +317,7 @@ void dtb(int dec, char *bin){
 }
 
 void Fano_decode(FILE *alp, FILE *in, FILE *out) {
-    struct symbol Symbols[5];
+    struct symbol Symbols[256];
     char key;
     char code[16] = {0};
     int curr_ind = 0;
@@ -350,9 +350,9 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
     char buff[16] = {0};
 
     while (fread(&byte, sizeof(unsigned char), 1, in) && ftell(in) <= part) {
-        dtb((int)byte, bin);
+        dtb((int)byte, bin); 
         strcat(buff, bin);
-        while (strlen(buff) > 0) {
+        while (strlen(buff) >= 8) {
             for (int i = 0; i < curr_ind; i++) {
                 if (strncmp(buff, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
                     fputc(Symbols[i].key, out);
@@ -368,7 +368,7 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
         bin[len] = '\0';      
         strcat(buff, bin);    
 
-        while (len > 0) {
+        while (strlen(buff) > 0) {
             for (int i = 0; i < curr_ind; i++) {
                 if (strncmp(buff, Symbols[i].value, strlen(Symbols[i].value)) == 0) {
                     fputc(Symbols[i].key, out);
@@ -476,7 +476,7 @@ int main(int argc, char *argv[]) {
     
     // char *algorithm = "Fano";
     // char *mode = "e";
-    // char *input_file = "text.txt";
+    // char *input_file = "text_lzw_enc.txt";
     // char *output_file = "text_enc.bin";
     // char *alphabet_file = "text_alp.txt";
 
