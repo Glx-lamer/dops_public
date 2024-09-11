@@ -49,6 +49,18 @@ struct dict *ASCII(struct dict *dict) {
     return dict;
 }
 
+int is_binary_file(char *filename) {
+    char *ext = strrchr(filename, '.');
+    if (ext != NULL) {
+        if (strcmp(ext, ".txt") == 0) {
+            return 0;
+        } else if (strcmp(ext, ".doc") == 0 || strcmp(ext, ".docx") == 0 || strcmp(ext, ".bin") == 0) {
+            return 1;
+        }
+    }
+    return 1;
+}
+
 void LZW_encode(FILE *in, FILE *out) {
     struct dict *dict = NULL;
     dict = ASCII(dict);
@@ -73,7 +85,7 @@ void LZW_encode(FILE *in, FILE *out) {
 
         if (code == -1) {
             if (prev_code != -1) {
-                fprintf(out, "%d ", prev_code);
+                fwrite(&prev_code, sizeof(int), 1, out);
             }
 
             dict = Insert(dict, curr_seq, next_code++);
@@ -86,7 +98,7 @@ void LZW_encode(FILE *in, FILE *out) {
     }
 
     if (prev_code != -1) {
-        fprintf(out, "%d", prev_code);
+        fwrite(&prev_code, sizeof(int), 1, out);
     }
 
     while (dict != NULL) {
@@ -122,12 +134,12 @@ void LZW_decode(FILE *in, FILE *out) {
     char *prev_seq;
     char *curr_seq;
 
-    fscanf(in, "%d", &prev_code);
+    fread(&prev_code, sizeof(int), 1, in);
 
     prev_seq = Get(dict, prev_code);
     fprintf(out, "%s", prev_seq);
 
-    while (fscanf(in, "%d", &curr_code) == 1) {
+    while (fread(&curr_code, sizeof(int), 1, in) == 1) {
         curr_seq = Get(dict, curr_code);
 
         if (curr_seq == NULL) {
@@ -231,7 +243,6 @@ void InvBytes(char *bits, FILE *stream) {
         for (int i = 0; i < len; i++) {
             byte |= (bits[i] - '0') << (7 - i);
         }
-        // byte <<= (8 - len);
     }
     fwrite(&byte, sizeof(unsigned char), 1, stream);
     fwrite(&len, sizeof(unsigned char), 1, stream);
@@ -402,7 +413,7 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
 void LZW(char mode, char *input_file, char *output_file) {
     if (mode == 'e') {
         FILE *in = fopen(input_file, "r");
-        FILE *out = fopen(output_file, "w");
+        FILE *out = fopen(output_file, "wb");
         clock_t start_time = clock();
         LZW_encode(in, out);
         clock_t end_time = clock();
@@ -411,7 +422,7 @@ void LZW(char mode, char *input_file, char *output_file) {
     }
     
     else if (mode == 'd') {
-        FILE *in = fopen(input_file, "r");
+        FILE *in = fopen(input_file, "rb");
         FILE *out = fopen(output_file, "w");
         clock_t start_time = clock();
         LZW_decode(in, out);
