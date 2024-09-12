@@ -92,7 +92,8 @@ void LZW_encode(FILE *in, FILE *out, int is_bin_input) {
             curr_seq[0] = ch;
             curr_seq[1] = '\0';
             prev_code = Search(dict, (char *)curr_seq);
-        } else {
+        } 
+        else {
             prev_code = code;
         }
     }
@@ -138,12 +139,12 @@ void LZW_decode(FILE *in, FILE *out, int is_bin_output) {
     prev_seq = (unsigned char *)Get(dict, prev_code);
 
     if (is_bin_output) {
-        fwrite(prev_seq, sizeof(unsigned char), strlen((char *)prev_seq), out);
+        fwrite(prev_seq, sizeof(unsigned char), strlen(prev_seq), out);
     } else {
         fprintf(out, "%s", prev_seq);
     }
 
-    while (fread(&curr_code, sizeof(int), 1, in) == 1) {
+    while (fread(&curr_code, sizeof(int), 1, in)) {
         curr_seq = (unsigned char *)Get(dict, curr_code);
 
         if (curr_seq == NULL) {
@@ -154,7 +155,7 @@ void LZW_decode(FILE *in, FILE *out, int is_bin_output) {
         }
 
         if (is_bin_output) {
-            fwrite(curr_seq, sizeof(unsigned char), strlen((char *)curr_seq), out);
+            fwrite(curr_seq, sizeof(unsigned char), strlen(curr_seq), out);
         } else {
             fprintf(out, "%s", curr_seq);
         }
@@ -472,39 +473,33 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     }
 }
 
-int main(int argc, char *argv[]) {
+int main(/*int argc, char *argv[]*/) {
 
     setlocale(LC_ALL, "ru_RU.UTF-8");
 
-    if (argc < 5) {
-        printf("Usage: %s <algorithm> <mode> <input_file> <output_file> [alphabet_file]\nalgorithm: LZW or Fano\nmode: e (encode) or d (decode)\ninput_file: path to input file\noutput_file: path to output file\n[alphabet_file]: required for Fano decoding/encoding\n", argv[0]);
-        return 1;
-    }
+    // if (argc < 5) {
+    //     printf("Usage: %s <algorithm> <mode> <input_file> <output_file> [alphabet_file]\nalgorithm: LZW or Fano\nmode: e (encode) or d (decode)\ninput_file: path to input file\noutput_file: path to output file\n[alphabet_file]: required for Fano decoding/encoding\n", argv[0]);
+    //     return 1;
+    // }
 
-    char *algorithm = argv[1];
-    char *mode = argv[2];
-    char *input_file = argv[3];
-    char *output_file = argv[4];
-    char *alphabet_file = NULL;
+    // char *algorithm = argv[1];
+    // char *mode = argv[2];
+    // char *input_file = argv[3];
+    // char *output_file = argv[4];
+    // char *alphabet_file = NULL;
 
-    // char *algorithm = "Fano";
-    // char *mode = "d";
-    // char *input_file = "text_enc.bin";
-    // char *output_file = "text_dec.txt";
-    // char *alphabet_file = "text_alp.txt";
-    
-    // char *algorithm = "Fano";
-    // char *mode = "e";
-    // char *input_file = "text_lzw_enc.txt";
-    // char *output_file = "text_enc.bin";
-    // char *alphabet_file = "text_alp.txt";
+    char *algorithm = "LZW";
+    char *mode = "d";
+    char *input_file = "lzw_enc.bin";
+    char *output_file = "lzw_dec.bin";
+    char *alphabet_file = "text_alp.txt";
 
     if (strcmp(algorithm, "LZW") == 0) {
         LZW(mode[0], input_file, output_file);
     }
     
     else if (strcmp(algorithm, "Fano") == 0) {
-        alphabet_file = argv[5];
+        // alphabet_file = argv[5];
         Fano(mode[0], input_file, output_file, alphabet_file);
     }
     else {
