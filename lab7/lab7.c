@@ -421,7 +421,7 @@ void Fano_decode(FILE *alp, FILE *in, FILE *out) {
 
 void LZW(char mode, char *input_file, char *output_file) {
     if (mode == 'e') {
-        FILE *in = fopen(input_file, "r");
+        FILE *in = fopen(input_file, "rb");
         FILE *out = fopen(output_file, "wb");
         clock_t start_time = clock();
         LZW_encode(in, out, is_binary_file(input_file));
@@ -432,7 +432,7 @@ void LZW(char mode, char *input_file, char *output_file) {
     
     else if (mode == 'd') {
         FILE *in = fopen(input_file, "rb");
-        FILE *out = fopen(output_file, "w");
+        FILE *out = fopen(output_file, "wb");
         clock_t start_time = clock();
         LZW_decode(in, out, is_binary_file(output_file));
         clock_t end_time = clock();
@@ -447,7 +447,7 @@ void LZW(char mode, char *input_file, char *output_file) {
 
 void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     if (mode == 'e') {
-        FILE *in = fopen(input_file, "r");
+        FILE *in = fopen(input_file, "rb");
         FILE *out = fopen(output_file, "wb");
         FILE *alp = fopen(alphabet_file, "w");
         clock_t start_time = clock();
@@ -459,7 +459,7 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
 
     else if (mode == 'd') {
         FILE *in = fopen(input_file, "rb");
-        FILE *out = fopen(output_file, "w");
+        FILE *out = fopen(output_file, "wb");
         FILE *alp = fopen(alphabet_file, "r");
         clock_t start_time = clock();
         Fano_decode(alp, in, out);
@@ -473,33 +473,27 @@ void Fano(char mode, char *input_file, char *output_file, char *alphabet_file) {
     }
 }
 
-int main(/*int argc, char *argv[]*/) {
+int main(int argc, char *argv[]) {
 
     setlocale(LC_ALL, "ru_RU.UTF-8");
 
-    // if (argc < 5) {
-    //     printf("Usage: %s <algorithm> <mode> <input_file> <output_file> [alphabet_file]\nalgorithm: LZW or Fano\nmode: e (encode) or d (decode)\ninput_file: path to input file\noutput_file: path to output file\n[alphabet_file]: required for Fano decoding/encoding\n", argv[0]);
-    //     return 1;
-    // }
+    if (argc < 5) {
+        printf("Usage: %s <algorithm> <mode> <input_file> <output_file> [alphabet_file]\nalgorithm: LZW or Fano\nmode: e (encode) or d (decode)\ninput_file: path to input file\noutput_file: path to output file\n[alphabet_file]: required for Fano decoding/encoding\n", argv[0]);
+        return 1;
+    }
 
-    // char *algorithm = argv[1];
-    // char *mode = argv[2];
-    // char *input_file = argv[3];
-    // char *output_file = argv[4];
-    // char *alphabet_file = NULL;
-
-    char *algorithm = "LZW";
-    char *mode = "d";
-    char *input_file = "lzw_enc.bin";
-    char *output_file = "lzw_dec.bin";
-    char *alphabet_file = "text_alp.txt";
+    char *algorithm = argv[1];
+    char *mode = argv[2];
+    char *input_file = argv[3];
+    char *output_file = argv[4];
+    char *alphabet_file = NULL;
 
     if (strcmp(algorithm, "LZW") == 0) {
         LZW(mode[0], input_file, output_file);
     }
     
     else if (strcmp(algorithm, "Fano") == 0) {
-        // alphabet_file = argv[5];
+        alphabet_file = argv[5];
         Fano(mode[0], input_file, output_file, alphabet_file);
     }
     else {

