@@ -46,7 +46,7 @@ int main() {
     text = (unsigned char*)malloc(textlen);
     memset(text, 0x00, textlen);
 
-    input = fopen("test.docx", "rb");
+    input = fopen("test.txt", "rb");
 
     while (fread(sbl, sizeof(unsigned char), 1, input)) {
         if (sblCount >= textlen) {
@@ -73,7 +73,7 @@ int main() {
 
     memset(textB + sblCount * 8, '0', 16);
 
-    unsigned int poly = 0b10001000000100001;
+    unsigned int poly = 0x3F6E;
     unsigned int crc_in = 0;
     for (unsigned int i = 0; i < sblCount; i++) {
         crc_in ^= (text[i] << 8);
