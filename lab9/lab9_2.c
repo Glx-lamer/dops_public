@@ -73,7 +73,7 @@ int main() {
 
     memset(textB + sblCount * 8, '0', 16);
 
-    unsigned int poly = 0x11021;
+    unsigned int poly = 0b10001000000100001;
     unsigned int crc_in = 0;
     for (unsigned int i = 0; i < sblCount; i++) {
         crc_in ^= (text[i] << 8);
